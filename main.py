@@ -1,49 +1,28 @@
 import telebot
 from telebot import types
-import pymysql
-import random
 import requests
 from bs4 import BeautifulSoup  # импорт библиотек
-import csv
+from csv_helper import get_information
 
-host = 'localhost'
-user = 'root'
-port = 3306
-password = 'root'
-db = 'databasekts'  # параметры для подключения БД
+def get_documents(): # Парсинг документов.
+    url = "https://техникумсвязи.рф/abiturientu/documentsforaccept/"
+    page = requests.get(url)
+    document_list = []
+    soup = BeautifulSoup(page.text, "html.parser")
+    docs = soup.find('ol', class_='list-group list-group-numbered')
+    for doc in docs:
+        document_list.append((doc.text)
+                             .replace('\n ', '').replace(';\r\n      ', '')
+                             .replace(';\r     ', '')
+                             .replace('.\r     ', ''))
 
-connection = pymysql.connect(host=host, user=user, password=password, database=db, port=port)  # подключение к БД
+    document_list.remove('\n')
+    document_list.remove('\n')
+    document_list.remove('\n')
+    document_list.remove('\n')
+    document_list.remove('\n')
 
-# def get_csv():
-#     with open('database.csv') as file:
-#         file_reader = csv.reader(file, delimiter=' ')
-#         count = 0
-#         for row in file_reader:
-#             if count == 0:
-#                 print(f'Файл содержит строки: {", ".join(row)}')
-#
-#             else:
-#                 print(f'{row[0]}: ')
-#
-#             count += 1
-#
-# get_csv()
-
-def get_status(regNumber):  # функция для получения места в рейтинге по рег. номеру
-    with connection.cursor() as cur:  # Подключаемся к бд
-        rating_list = []  # Создаем пустой массив.
-        sql = "SELECT Rating FROM `user` WHERE `IsCopy` = %s"  # Запрос к БД SELECT - выборка, FROM - из какой таблицы, WHERE - условие для сортировки
-        cur.execute(sql, ("Нет"))  # выполнение запроса
-        result = cur.fetchall()  # считывание результата
-        for row in result:  # цикл для перебора данных
-            rating_list.append("%s" % row[0])  # добавление данных в массив.
-
-        rating_list.sort(reverse=True)  # Сортировка массива по возростанию.
-
-        if get_rating(regNumber) in rating_list:  # Проверка, что данное значение есть в массиве.
-            return rating_list.index(get_rating(regNumber)) + 1  # Определяем индекс массива
-
-
+    return document_list
 
 def get_links():
     url = "https://техникумсвязи.рф/blog/"  # адрес страницы
@@ -74,52 +53,8 @@ def parserKTS():  # функция для парсинга
     return news_list  # возвращаем строку
 
 
-def is_user_exist(regNumber):  # проверка на пользователя (в БД)
-    with connection.cursor() as cur:  # подключение БД
-        users = []  # Создаем пустой массив
-        sql = "SELECT `RegNumber` FROM `user` WHERE `IsCopy` = %s"  # Запрос
-        cur.execute(sql, "Нет")  # выполнения запроса с параметром
-        user_find = cur.fetchall()  # нахождения результата
-        for row in user_find:  # перебор данных циклом
-            users.append("%d" % row[0])  # добавления данных в массив
-
-    if str(regNumber) in users:  # проверка параметра на нахождения пользователя в массиве
-        return True  # возвращаем истенное
-    else:  # иначе
-        return False  # возвращаем ложное
-
-
-def get_rating(regNumber):  # функция для получения рейтинга
-    with connection.cursor() as cur:  # подключение БД
-        sql = "SELECT `Rating` FROM `user` WHERE `RegNumber` = %s AND `IsCopy` = %s"  # Запрос к БД SELECT - выборка, FROM - из какой таблицы, WHERE - условие для сортировки
-        rating = 0  # создаем переменную
-        cur.execute(sql, (regNumber, "Нет"))  # выполнения запроса с параметром
-        result = cur.fetchall()  # нахождения результата
-        for row in result:  # перебор данных циклом
-            rating = "%s" % row[0]  # добавления значения рейтинга
-    return rating  # возвращаем рейтинг
-
-
-def get_specialnost(regNumber):  # функция для получения специальности
-    with connection.cursor() as cur:  # подключение БД
-        sql = "SELECT `Specialnost` FROM `user` WHERE `RegNumber` = %s"  # Запрос к БД SELECT - выборка, FROM - из какой таблицы, WHERE - условие для сортировки
-        cur.execute(sql, (regNumber))  # выполнения запроса с параметром
-        result = cur.fetchone()  # нахождения результата
-
-    return result  # возвращаем специальность
-
-
-def get_FIO(regNumber):  # функция для получения ФИО
-    with connection.cursor() as cur:  # подключение БД
-        sql = "SELECT `FIO` FROM `user` WHERE `RegNumber` = %s"  # Запрос к БД SELECT - выборка, FROM - из какой таблицы, WHERE - условие для сортировки
-        cur.execute(sql, (regNumber))  # выполнения запроса с параметром
-        result = cur.fetchone()  # нахождения результата
-
-    return result  # возвращам ФИО
-
-
 bot = telebot.TeleBot('6000660385:AAFl_hZ11tmBJjuR1W9yYtkLeU2g4y368OI')
-print('Success')
+print('[LOG] Start success')
 
 
 @bot.message_handler(commands=['start'])
@@ -145,16 +80,6 @@ def main_markup():
 def send_information(message):  # функция отправления данных
     bot.send_message(message.chat.id, text=get_information(message.text.split()[0]))
 
-
-def get_information(regNumber):  # функция для получения информации
-    if is_user_exist(regNumber):  # проверка на пользователя
-        fio = ''.join(get_FIO(regNumber))  # форматируем имя
-        spec = ''.join(get_specialnost(regNumber))  # форматируем  специальность
-        rating = get_rating(regNumber)  # форматируем рейтинг
-        information = f"👨‍💻 Ваше ФИО: {fio}\n🎓 Ваша специальность: {spec}\n📈 Ваш рейтинг: {rating}\n🏆 Место в общем рейтинге: {get_status(regNumber)}"  # создаем строку с информацией
-        return information  # возвращаем информацию
-    else:  # иначе
-        return "❌ Нет такого пользователя! ❌\n\nПользователь не найден в базе данных, либо присутствует только копия документов!"  # ошибка
 
 
 @bot.message_handler(content_types=['text'])
@@ -241,12 +166,11 @@ def send_message(message):
             bot.send_message(message.chat.id, "Для прочтения новости нажмите на кнопку.", reply_markup=markup)
 
     elif message.text == "Сведения о времени подачи заявлений и необходимом комплекте документов":
-        bot.send_message(message.chat.id,
-                         "👨‍💻 Документы для подачи заявления: \n\n"
-                         "\n📃 1. Оригинал или ксерокопия документов, удостоверяющих личность и гражданство"
-                         "\n📃 2. Оригинал или ксерокопия документов об образовании и (или) документа об образовании и о квалификации;"
-                         "\n📃 3. Согласие на обработку данных;"
-                         "\n📃 4. Фотографии – 4 шт. (размер 3х4).")
+        document_list = "👨‍💻 Документы для подачи заявления: \n\n"
+        for i in range(len(get_documents())):
+            document_list += f"📃 {i+1}. {get_documents()[i]}\n"
+
+        bot.send_message(message.chat.id, document_list)
 
 
 bot.polling(none_stop=True)  # нон стоп работа бота
