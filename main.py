@@ -3,8 +3,10 @@ from telebot import types
 import requests
 from bs4 import BeautifulSoup  # импорт библиотек
 from csv_helper import get_information
+from AccessHelper import get_stat, get_rating
 
-def get_documents(): # Парсинг документов.
+
+def get_documents():  # Парсинг документов.
     url = "https://техникумсвязи.рф/abiturientu/documentsforaccept/"
     page = requests.get(url)
     document_list = []
@@ -24,6 +26,7 @@ def get_documents(): # Парсинг документов.
 
     return document_list
 
+
 def get_links():
     url = "https://техникумсвязи.рф/blog/"  # адрес страницы
     page = requests.get(url)  # получине структуры страницы
@@ -37,6 +40,7 @@ def get_links():
 
     return link_list
 
+
 def parserKTS():  # функция для парсинга
     url = "https://техникумсвязи.рф/blog/"  # адрес страницы
     page = requests.get(url)  # получине структуры страницы
@@ -48,7 +52,6 @@ def parserKTS():  # функция для парсинга
     news = soup.findAll('h3', class_='post-title')  # ищем теги страницы в классе
     for data in news:  # перебор данных циклом
         news_list.append(data.text)  # добавления данных в массив
-
 
     return news_list  # возвращаем строку
 
@@ -78,8 +81,7 @@ def main_markup():
 
 
 def send_information(message):  # функция отправления данных
-    bot.send_message(message.chat.id, text=get_information(message.text.split()[0]))
-
+    bot.send_message(message.chat.id, text=get_stat(get_rating(), message.text.split()[0]))
 
 
 @bot.message_handler(content_types=['text'])
@@ -168,7 +170,7 @@ def send_message(message):
     elif message.text == "Сведения о времени подачи заявлений и необходимом комплекте документов":
         document_list = "👨‍💻 Документы для подачи заявления: \n\n"
         for i in range(len(get_documents())):
-            document_list += f"📃 {i+1}. {get_documents()[i]}\n"
+            document_list += f"📃 {i + 1}. {get_documents()[i]}\n"
 
         bot.send_message(message.chat.id, document_list)
 
